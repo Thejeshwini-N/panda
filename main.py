@@ -39,7 +39,6 @@ app.add_middleware(
 # Role-based access control middleware
 @app.middleware("http")
 async def role_based_access_control(request: FastAPIRequest, call_next):
-    # Skip middleware for API routes, static files, and login
     if (request.url.path.startswith("/api/") or 
         request.url.path.startswith("/static/") or 
         request.url.path.startswith("/docs") or
@@ -50,10 +49,8 @@ async def role_based_access_control(request: FastAPIRequest, call_next):
         response = await call_next(request)
         return response
     
-    # Check if user is authenticated
     token = request.cookies.get("access_token")
     if not token:
-        # Try to get token from Authorization header
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
@@ -62,16 +59,12 @@ async def role_based_access_control(request: FastAPIRequest, call_next):
         return RedirectResponse(url="/login")
     
     try:
-        # Decode token
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_role = payload.get("role")
-        
-        # Check access permissions
         if request.url.path.startswith("/admin/") and user_role != "admin":
             return RedirectResponse(url="/client/requests")
         elif request.url.path.startswith("/client/") and user_role != "client":
             return RedirectResponse(url="/admin/requests")
-            
     except jwt.ExpiredSignatureError:
         return RedirectResponse(url="/login")
     except jwt.InvalidTokenError:
@@ -119,30 +112,10 @@ async def client_requests_page(request: FastAPIRequest):
 async def admin_requests_page(request: FastAPIRequest):
     return templates.TemplateResponse("admin_requests.html", {"request": request})
 
+# ---- Main entrypoint for Render ----
 if __name__ == "__main__":
-    import socket
-    
-    def find_free_port():
-        """Find a free port starting from 8000"""
-        for port in range(8000, 8010):
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('0.0.0.0', port))
-                    return port
-            except OSError:
-                continue
-        return 8000  # fallback
-    
-    port = find_free_port()
+    port = int(os.environ.get("PORT", 8000))  # Use Render's PORT or fallback to 8000
     print(f"🚀 Starting Synthetic Data Generation Service on port {port}")
-    print(f"🌐 Open your browser to: http://localhost:{port}")
-    print(f"📚 API Documentation: http://localhost:{port}/docs")
-    print("Press Ctrl+C to stop the server")
-    
-    try:
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-    except KeyboardInterrupt:
-        print("\n👋 Server stopped by user")
-    except Exception as e:
-        print(f"❌ Error starting server: {e}")
-        print("💡 Try running on a different port or check if another service is using port 8000")
+    print(f"🌐 API Documentation: http://localhost:{port}/docs")
+
+    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
