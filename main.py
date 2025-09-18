@@ -4,10 +4,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-import uvicorn
+import logging
 import os
 import jwt
 from dotenv import load_dotenv
+import uvicorn  # <--- Import uvicorn to run FastAPI
 
 from database import get_db, engine, Base, test_connection
 from models import Request as DBRequest, Client, Admin
@@ -26,6 +27,9 @@ app = FastAPI(
     description="A service for generating synthetic datasets based on client requests",
     version="1.0.0"
 )
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 
 # CORS middleware
 app.add_middleware(
@@ -112,10 +116,10 @@ async def client_requests_page(request: FastAPIRequest):
 async def admin_requests_page(request: FastAPIRequest):
     return templates.TemplateResponse("admin_requests.html", {"request": request})
 
-# ---- Main entrypoint for Render ----
+# ---- Main entrypoint for Render or local ----
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))  # Use Render's PORT or fallback to 8000
-    print(f"🚀 Starting Synthetic Data Generation Service on port {port}")
-    print(f"🌐 API Documentation: http://localhost:{port}/docs")
+    port = int(os.environ.get("PORT", 8000))  # Render uses PORT env
+    logging.info(f"🚀 Starting Synthetic Data Generation Service on port {port}")
+    logging.info(f"🌐 API Documentation: http://localhost:{port}/docs")
 
     uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
